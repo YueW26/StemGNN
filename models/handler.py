@@ -1,3 +1,11 @@
+import pandas as pd
+import numpy as np
+import json
+import os
+import time
+import torch
+
+
 import json
 from datetime import datetime
 
@@ -12,7 +20,7 @@ import os
 
 from utils.math_utils import evaluate
 
-
+# Save the model to the specified directory.
 def save_model(model, model_dir, epoch=None):
     if model_dir is None:
         return
@@ -23,7 +31,7 @@ def save_model(model, model_dir, epoch=None):
     with open(file_name, 'wb') as f:
         torch.save(model, f)
 
-
+# Loads a model from the specified directory.
 def load_model(model_dir, epoch=None):
     if not model_dir:
         return
@@ -37,7 +45,7 @@ def load_model(model_dir, epoch=None):
         model = torch.load(f)
     return model
 
-
+# Use the model to make inferences (predictions) on the data and return the prediction results and target values.
 def inference(model, dataloader, device, node_cnt, window_size, horizon):
     forecast_set = []
     target_set = []
@@ -63,7 +71,7 @@ def inference(model, dataloader, device, node_cnt, window_size, horizon):
             target_set.append(target.detach().cpu().numpy())
     return np.concatenate(forecast_set, axis=0), np.concatenate(target_set, axis=0)
 
-
+# Verify the model's performance on the validation dataset and calculate evaluation metrics.
 def validate(model, dataloader, device, normalize_method, statistic,
              node_cnt, window_size, horizon,
              result_file=None):
@@ -99,7 +107,7 @@ def validate(model, dataloader, device, normalize_method, statistic,
     return dict(mae=score[1], mae_node=score_by_node[1], mape=score[0], mape_node=score_by_node[0],
                 rmse=score[2], rmse_node=score_by_node[2])
 
-
+# Train the model.
 def train(train_data, valid_data, args, result_file):
     node_cnt = train_data.shape[1]
     model = Model(node_cnt, 2, args.window_size, args.multi_layer, horizon=args.horizon)
@@ -190,7 +198,7 @@ def train(train_data, valid_data, args, result_file):
             break
     return performance_metrics, normalize_statistic
 
-
+# Test the model’s performance on the test dataset.
 def test(test_data, args, result_train_file, result_test_file):
     with open(os.path.join(result_train_file, 'norm_stat.json'),'r') as f:
         normalize_statistic = json.load(f)
@@ -205,3 +213,85 @@ def test(test_data, args, result_train_file, result_test_file):
                       result_file=result_test_file)
     mae, mape, rmse = performance_metrics['mae'], performance_metrics['mape'], performance_metrics['rmse']
     print('Performance on test set: MAPE: {:5.2f} | MAE: {:5.2f} | RMSE: {:5.4f}'.format(mape, mae, rmse))
+
+
+
+
+
+    
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import numpy as np
+import json
+import os
+import time
+import torch
+from torch import nn
+from torch.utils import data as torch_data
+
+# 这里你需要定义你的模型和数据集类
+# from your_model import Model, ForecastDataset  # 确保你有模型和数据集类
+
+def train(args, result_file):
+    # 读取数据
+    data_file = 'Germany (DE).csv'
+    full_data = pd.read_csv(data_file)
+
+    # 转换 'MTU' 列为日期时间格式
+    full_data['MTU'] = pd.to_datetime(full_data['MTU'], format='%Y/%m/%d %H:%M:%S')
+
+    # 将 'MTU' 列转换为 UNIX 时间戳
+    full_data['MTU'] = (full_data['MTU'] - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
+
+    # 删除 'Country' 列
+    full_data = full_data.drop(columns=['Country'])
+
+    # 划分训练集和验证集
+    train_size = int(0.8 * len(full_data))
+    train_data = full_data[:train_size].values
+    valid_data = full_data[train_size:].values
+
+    # 确保 train_data 和 valid_data 是 float32 类型
+    train_data = np.array(train_data, dtype=np.float32)
+    valid_data = np.array(valid_data, dtype=np.float32)
+
+    # 继续模型训练逻辑
+    # ...
+
+    return performance_metrics, normalize_statistic
+
+
+
+# Test the model.
+def test(model, dataloader, device, normalize_method, statistic, node_cnt, window_size, horizon):
+    model.eval()
+    with torch.no_grad():
+        forecast_norm, target_norm = inference(model, dataloader, device, node_cnt, window_size, horizon)
+
+        if normalize_method and statistic:
+            forecast = de_normalized(forecast_norm, normalize_method, statistic)
+            target = de_normalized(target_norm, normalize_method, statistic)
+        else:
+            forecast, target = forecast_norm, target_norm
+
+        score = evaluate(target, forecast)
+        print(f'Test Results: MAPE: {score[0]:.4f}, MAE: {score[1]:.4f}, RMSE: {score[2]:.4f}')
+
+    return dict(mae=score[1], mape=score[0], rmse=score[2])
+
+'''
